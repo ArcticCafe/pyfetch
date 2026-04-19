@@ -1,0 +1,14 @@
+[project]
+name = "pyfetch"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = []
+
+[build-system]
+requires = ["hatch"]
+build-backend = "hatchling.build"
+
+[project.scripts]
+pyfetch = "pyfetch.cli:main"
