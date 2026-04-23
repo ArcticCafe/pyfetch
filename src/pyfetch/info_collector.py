@@ -1,13 +1,14 @@
 import platform
 
-from pydantic import BaseModel
+import psutil
+from pydantic import BaseModel, Field
 
 
 class CPUInfo(BaseModel):
-    model_name: str
-    cores: int
-    cpu_freq: float
-    raw_data: dict[str, str]
+    model_name: str = Field(alias="model name")
+    cores: int = Field(alias="cpu cores")
+    cpu_freq: float = Field(alias="cpu MHz")
+    threads: int = Field(alias="siblings")
 
 
 class OSInfo(BaseModel):
@@ -16,6 +17,12 @@ class OSInfo(BaseModel):
     architecture: str
     system: str
     server_name: str
+
+
+class MemoryInfo(BaseModel):
+    total: int
+    free: int
+    percent: float
 
 
 def _get_os_info_object() -> OSInfo:
@@ -42,27 +49,40 @@ def _get_first_core_raw_data() -> dict:
     return current_core if current_core else {}
 
 
+def _get_cpu_info_object() -> CPUInfo:
+    cpu_raw_data = _get_first_core_raw_data()
+    return CPUInfo(**cpu_raw_data)
+
+
+def _get_memory_raw_data() -> dict:
+    """Returns a dictionary of the system's memory usage. The data is in bytes."""
+    mem = psutil.virtual_memory()
+    return {
+        "total": mem.total,
+        "free": mem.free,
+        "percent": mem.percent,
+    }
+
+
+def _get_memory_info_object() -> MemoryInfo:
+    memory_raw_data = _get_memory_raw_data()
+    return MemoryInfo(**memory_raw_data)
+
+
 class InfoCollector:
     def __init__(self):
         self.os_info = _get_os_info_object()
+        self.cpu_info = _get_cpu_info_object()
+        self.memory_info = _get_memory_info_object()
 
-    def _get_os_release(self):
-        return self.os_info.distro_name
-
-    def _get_cpu_info(self):
-        cpu_info = platform.machine()
-        return cpu_info
-
-    @property
-    def os_release(self):
-        return self._get_os_release()
-
-    @property
-    def cpu_info(self):
-        return self._get_cpu_info()
+    def get_info_dict(self) -> dict:
+        return {
+            "os_info": self.os_info.model_dump(),
+            "cpu_info": self.cpu_info.model_dump(),
+            "memory_info": self.memory_info.model_dump(),
+        }
 
 
 if __name__ == "__main__":
     collector = InfoCollector()
-    print(collector.os_release)
-    print(collector.cpu_info)
+    print(collector.get_info_dict())
