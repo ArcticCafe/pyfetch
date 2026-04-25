@@ -1,3 +1,4 @@
+import getpass
 import platform
 
 import psutil
@@ -17,12 +18,13 @@ class OSInfo(BaseModel):
     architecture: str
     system: str
     server_name: str
+    user_name: str
 
 
 class MemoryInfo(BaseModel):
     total: int
     free: int
-    percent: float
+    memory_usage: float
 
 
 def _get_os_info_object() -> OSInfo:
@@ -32,6 +34,7 @@ def _get_os_info_object() -> OSInfo:
         architecture=platform.machine(),
         system=platform.system(),
         server_name=platform.node(),
+        user_name=getpass.getuser(),
     )
 
 
@@ -60,7 +63,7 @@ def _get_memory_raw_data() -> dict:
     return {
         "total": mem.total,
         "free": mem.free,
-        "percent": mem.percent,
+        "memory_usage": mem.percent,
     }
 
 

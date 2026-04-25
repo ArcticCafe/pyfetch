@@ -1,8 +1,8 @@
 from pyfetch.info_collector import InfoCollector
+from pyfetch.printer import Printer
 
 
 def main():
     collector = InfoCollector()
-    print(collector.os_info)
-    print(collector.cpu_info)
-    print(collector.memory_info)
+    printer = Printer()
+    printer.print(collector.get_info_dict())
