@@ -1,15 +1,16 @@
-import getpass
 import platform
 
 import psutil
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
+
+from pyfetch.collectors import linux, macos
 
 
 class CPUInfo(BaseModel):
-    model_name: str = Field(alias="model name")
-    cores: int = Field(alias="cpu cores")
-    cpu_freq: float = Field(alias="cpu MHz")
-    threads: int = Field(alias="siblings")
+    model_name: str
+    cores: int
+    cpu_freq: float
+    threads: int
 
 
 class OSInfo(BaseModel):
@@ -27,36 +28,6 @@ class MemoryInfo(BaseModel):
     memory_usage: float
 
 
-def _get_os_info_object() -> OSInfo:
-    return OSInfo(
-        distro_name=platform.freedesktop_os_release().get("PRETTY_NAME", "Unknown OS"),
-        kernel_version=platform.release(),
-        architecture=platform.machine(),
-        system=platform.system(),
-        server_name=platform.node(),
-        user_name=getpass.getuser(),
-    )
-
-
-def _get_first_core_raw_data() -> dict:
-    """Parses /proc/cpuinfo and return a dictionary of the first core's raw data."""
-    current_core = {}
-    with open("/proc/cpuinfo", "r") as f:
-        for line in f:
-            line = line.strip()
-            if not line:
-                if current_core:
-                    return current_core
-            key, value = line.split(":", 1)
-            current_core[key.strip()] = value.strip()
-    return current_core if current_core else {}
-
-
-def _get_cpu_info_object() -> CPUInfo:
-    cpu_raw_data = _get_first_core_raw_data()
-    return CPUInfo(**cpu_raw_data)
-
-
 def _get_memory_raw_data() -> dict:
     """Returns a dictionary of the system's memory usage. The data is in bytes."""
     mem = psutil.virtual_memory()
@@ -67,16 +38,22 @@ def _get_memory_raw_data() -> dict:
     }
 
 
-def _get_memory_info_object() -> MemoryInfo:
-    memory_raw_data = _get_memory_raw_data()
-    return MemoryInfo(**memory_raw_data)
+def _select_backend():
+    system = platform.system()
+    if system == "Linux":
+        return linux
+    if system == "Darwin":
+        return macos
+    raise RuntimeError(f"Unsupported platform: {system}")
 
 
 class InfoCollector:
     def __init__(self):
-        self.os_info = _get_os_info_object()
-        self.cpu_info = _get_cpu_info_object()
-        self.memory_info = _get_memory_info_object()
+        backend = _select_backend()
+        self.system = platform.system()
+        self.os_info = OSInfo(**backend.get_os_raw())
+        self.cpu_info = CPUInfo(**backend.get_cpu_raw())
+        self.memory_info = MemoryInfo(**_get_memory_raw_data())
 
     def get_info_dict(self) -> dict:
         return {
